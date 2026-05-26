@@ -182,19 +182,27 @@
             }
           });
 
-          // 중심 정렬 및 카메라 자동 조정
+          // 중심 정렬 + 크기 정규화 (단위 무관하게 화면에 딱 맞게)
           const box = new THREE.Box3().setFromObject(model);
           const center = box.getCenter(new THREE.Vector3());
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
 
-          model.position.sub(center);
-          model.position.y += size.y / 2;
-          ground.position.y = -size.y / 2;
-          grid.position.y = -size.y / 2;
+          // 모델을 1단위 크기로 정규화
+          const scale = 2.0 / maxDim;
+          model.scale.setScalar(scale);
 
-          camera.position.set(maxDim * 1.5, maxDim * 1.0, maxDim * 1.5);
-          controls.target.set(0, size.y * 0.2, 0);
+          // 중심 이동
+          model.position.copy(center.negate().multiplyScalar(scale));
+          model.position.y += size.y * scale / 2;
+
+          ground.position.y = -size.y * scale / 2;
+          grid.position.y   = -size.y * scale / 2;
+
+          camera.position.set(3, 2, 3);
+          controls.target.set(0, size.y * scale * 0.3, 0);
+          controls.minDistance = 0.1;
+          controls.maxDistance = 50;
           controls.update();
 
           scene.add(model);
