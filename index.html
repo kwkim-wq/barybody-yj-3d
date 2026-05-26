@@ -58,7 +58,7 @@
     <div id="title">
       <h1>YJ컴퍼니 — 연구개발 3D</h1>
       <p>드래그: 회전 &nbsp;|&nbsp; 스크롤: 줌 &nbsp;|&nbsp; 우클릭: 이동</p>
-      <p style="margin-top:2px">넘패드 1: 정면 &nbsp;|&nbsp; 3: 우측 &nbsp;|&nbsp; 7: 위 &nbsp;|&nbsp; 0: 아이소</p>
+      <p style="margin-top:2px">1: 정면 &nbsp;|&nbsp; 2: 위 &nbsp;|&nbsp; 3: 우측 &nbsp;|&nbsp; 4: 후면 &nbsp;|&nbsp; 5: 아이소</p>
     </div>
     <div id="tabs">
       <div class="tab active" onclick="loadModel('converted/all-0525.glb', this)">all-0525</div>
@@ -247,14 +247,13 @@
     }
 
     window.addEventListener('keydown', (e) => {
-      const d = 4; // 거리
+      const d = 4;
       switch (e.code) {
-        case 'Numpad1': setView([0, 0, d], [0, 0, 0]); break;       // 정면
-        case 'Numpad3': setView([d, 0, 0], [0, 0, 0]); break;       // 우측면
-        case 'Numpad7': setView([0, d, 0], [0, 0, 0]); break;       // 평면(위)
-        case 'Numpad9': setView([0, -d, 0], [0, 0, 0]); break;      // 아래
-        case 'Numpad5': setView([-0, 0, -d], [0, 0, 0]); break;     // 후면
-        case 'Numpad0': setView([d, d, d], [0, 0, 0]); break;       // 아이소메트릭
+        case 'Digit1': setView([0, 0, d],  [0, 0, 0]); break;  // 정면
+        case 'Digit2': setView([0, d, 0],  [0, 0, 0]); break;  // 위
+        case 'Digit3': setView([d, 0, 0],  [0, 0, 0]); break;  // 우측면
+        case 'Digit4': setView([0, 0, -d], [0, 0, 0]); break;  // 후면
+        case 'Digit5': setView([d, d, d],  [0, 0, 0]); break;  // 아이소메트릭
       }
     });
 
