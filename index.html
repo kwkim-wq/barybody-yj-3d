@@ -183,33 +183,39 @@
             }
           });
 
-          // 중심 정렬 + 크기 정규화 (단위 무관하게 화면에 딱 맞게)
+          // Z-up → Y-up 좌표계 보정 + 정규화
+          model.rotation.x = -Math.PI / 2;
+
+          // 씬에 먼저 추가해야 world bounding box 정확하게 계산됨
+          scene.add(model);
+
+          // 회전 적용 후 실제 bounding box 계산
           const box = new THREE.Box3().setFromObject(model);
           const center = box.getCenter(new THREE.Vector3());
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
-
-          // Z-up → Y-up 좌표계 보정 (STP/CAD 파일 기준)
-          model.rotation.x = -Math.PI / 2;
-
-          // 모델을 1단위 크기로 정규화
           const scale = 2.0 / maxDim;
+
           model.scale.setScalar(scale);
 
-          // 중심 이동
-          model.position.copy(center.negate().multiplyScalar(scale));
-          model.position.y += size.y * scale / 2;
+          // bounding box 재계산 (scale 적용 후)
+          box.setFromObject(model);
+          const center2 = box.getCenter(new THREE.Vector3());
+          const min2 = box.min;
 
-          ground.position.y = -size.y * scale / 2;
-          grid.position.y   = -size.y * scale / 2;
+          // XZ 중심 맞추고, 바닥(min.y)을 y=0에 붙이기
+          model.position.x -= center2.x;
+          model.position.z -= center2.z;
+          model.position.y -= min2.y;
+
+          ground.position.y = 0;
+          grid.position.y = 0;
 
           camera.position.set(3, 2, 3);
           controls.target.set(0, size.y * scale * 0.3, 0);
           controls.minDistance = 0.1;
           controls.maxDistance = 50;
           controls.update();
-
-          scene.add(model);
           currentModel = model;
           loading.style.display = 'none';
         },
