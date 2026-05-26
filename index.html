@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YJ컴퍼니 3D 뷰어</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a1a; font-family: 'Helvetica Neue', sans-serif; overflow: hidden; }
+    #canvas-container { width: 100vw; height: 100vh; }
+    canvas { display: block; }
+
+    #ui {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      pointer-events: none;
+    }
+    #title {
+      background: rgba(255,255,255,0.08); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+      padding: 10px 22px; color: #fff; text-align: center;
+    }
+    #title h1 { font-size: 14px; font-weight: 500; letter-spacing: 0.05em; }
+    #title p  { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+
+    #tabs {
+      display: flex; gap: 8px; pointer-events: all;
+    }
+    .tab {
+      background: rgba(255,255,255,0.08); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+      padding: 7px 18px; color: rgba(255,255,255,0.6); font-size: 12px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .tab:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .tab.active {
+      background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.35);
+      color: #fff; font-weight: 600;
+    }
+
+    #loading {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      color: #fff; text-align: center;
+    }
+    #loading .spinner {
+      width: 36px; height: 36px; border: 2.5px solid rgba(255,255,255,0.2);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+    }
+    #loading p { font-size: 13px; color: rgba(255,255,255,0.6); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="ui">
+    <div id="title">
+      <h1>YJ컴퍼니 — 연구개발 3D</h1>
+      <p>드래그: 회전 &nbsp;|&nbsp; 스크롤: 줌 &nbsp;|&nbsp; 우클릭: 이동</p>
+    </div>
+    <div id="tabs">
+      <div class="tab active" onclick="loadModel('converted/all-0525.glb', this)">all-0525</div>
+      <div class="tab" onclick="loadModel('converted/asm0005_asm.glb', this)">asm0005</div>
+    </div>
+  </div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <p id="loading-text">불러오는 중...</p>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const container = document.getElementById('canvas-container');
+
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    // Scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a1a);
+    scene.fog = new THREE.Fog(0x1a1a1a, 8, 25);
+
+    // Camera
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.001, 100);
+    camera.position.set(1, 0.8, 1.5);
+
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 0.05;
+    controls.maxDistance = 20;
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+
+    const key = new THREE.DirectionalLight(0xffffff, 2.0);
+    key.position.set(3, 4, 2);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    scene.add(key);
+
+    const fill = new THREE.DirectionalLight(0xb0c8ff, 0.6);
+    fill.position.set(-2, 1, -2);
+    scene.add(fill);
+
+    const rim = new THREE.DirectionalLight(0xffffff, 0.4);
+    rim.position.set(0, -2, -3);
+    scene.add(rim);
+
+    // Ground shadow
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(20, 20),
+      new THREE.ShadowMaterial({ opacity: 0.15 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Grid
+    const grid = new THREE.GridHelper(10, 30, 0x444444, 0x333333);
+    scene.add(grid);
+
+    let currentModel = null;
+    const loader = new GLTFLoader();
+
+    window.loadModel = function(filename, tabEl) {
+      // 탭 활성화
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tabEl.classList.add('active');
+
+      // 기존 모델 제거
+      if (currentModel) {
+        scene.remove(currentModel);
+        currentModel = null;
+      }
+
+      const loading = document.getElementById('loading');
+      const loadingText = document.getElementById('loading-text');
+      loading.style.display = 'block';
+      loadingText.textContent = '불러오는 중...';
+
+      loader.load(
+        filename,
+        (gltf) => {
+          const model = gltf.scene;
+
+          model.traverse(node => {
+            if (node.isMesh) {
+              node.castShadow = true;
+              node.receiveShadow = true;
+              // 재질이 없으면 기본 재질 적용
+              if (!node.material || node.material.type === 'MeshStandardMaterial') {
+                node.material = new THREE.MeshStandardMaterial({
+                  color: 0xcccccc,
+                  metalness: 0.3,
+                  roughness: 0.6,
+                });
+              }
+            }
+          });
+
+          // 중심 정렬 및 카메라 자동 조정
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+
+          model.position.sub(center);
+          model.position.y += size.y / 2;
+          ground.position.y = -size.y / 2;
+          grid.position.y = -size.y / 2;
+
+          camera.position.set(maxDim * 1.5, maxDim * 1.0, maxDim * 1.5);
+          controls.target.set(0, size.y * 0.2, 0);
+          controls.update();
+
+          scene.add(model);
+          currentModel = model;
+          loading.style.display = 'none';
+        },
+        (xhr) => {
+          if (xhr.total) {
+            const pct = Math.round(xhr.loaded / xhr.total * 100);
+            loadingText.textContent = `불러오는 중... ${pct}%`;
+          }
+        },
+        (err) => {
+          loadingText.textContent = 'GLB 파일을 찾을 수 없습니다.';
+          console.error(err);
+        }
+      );
+    };
+
+    // 첫 모델 로드
+    loadModel('converted/all-0525.glb', document.querySelector('.tab.active'));
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Animate
+    (function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    })();
+  </script>
+</body>
+</html>
