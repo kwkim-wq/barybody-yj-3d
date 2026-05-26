@@ -188,6 +188,9 @@
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
 
+          // Z-up → Y-up 좌표계 보정 (STP/CAD 파일 기준)
+          model.rotation.x = -Math.PI / 2;
+
           // 모델을 1단위 크기로 정규화
           const scale = 2.0 / maxDim;
           model.scale.setScalar(scale);
